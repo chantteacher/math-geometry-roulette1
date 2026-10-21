@@ -185,6 +185,14 @@ details summary{cursor:pointer;font-size:14px;font-weight:500}
 .go.stop:disabled{opacity:1;cursor:default}
 .font-warm{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;font-family:'BHS Button'}
 button{touch-action:manipulation}
+.readout{display:flex;gap:8px;flex-wrap:wrap}
+.ro{display:flex;flex-direction:column;align-items:flex-start;padding:6px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--panel-2);min-width:96px}
+.ro span{font:600 11px var(--body);color:var(--muted)} .ro strong{font:700 18px var(--mono);color:var(--mark);white-space:nowrap}
+.ro.wide{min-width:190px}
+/* in the spinner the result card sits under the stage so it never covers the wheel */
+.result.below{position:relative;left:auto;bottom:auto;transform:none;width:auto;animation:pop2 .4s cubic-bezier(.2,1.5,.4,1)}
+@keyframes pop2{0%{transform:scale(.92);opacity:0}}
+@media (max-width:600px){.ro.wide{min-width:0}.ro strong{font-size:16px}}
 /* app install: a small button at the top right and a device-specific guide */
 .app{position:relative}
 .install{position:absolute;top:10px;right:max(16px,env(safe-area-inset-right,0px));z-index:5;display:inline-flex;align-items:center;gap:5px;font:700 12px var(--body);color:var(--ink);background:rgba(25,32,72,.85);border:1px solid var(--line);border-radius:999px;padding:5px 11px;cursor:pointer}
@@ -214,7 +222,7 @@ button{touch-action:manipulation}
       <button class="tab" role="tab" id="tab-dice" aria-selected="false" data-mode="dice">좌표 주사위</button>
       <button class="tab" role="tab" id="tab-marble" aria-selected="false" data-mode="marble">구슬 레이스</button>
       <button class="tab" role="tab" id="tab-pool" aria-selected="false" data-mode="pool">벡터 당구</button>
-      <button class="tab" role="tab" id="tab-vec" aria-selected="false" data-mode="vec">꼬꼬무 벡터</button>
+      <button class="tab" role="tab" id="tab-wheel" aria-selected="false" data-mode="wheel">단위벡터 돌림판</button>
       <button class="tab" role="tab" id="tab-sh" aria-selected="false" data-mode="sh">그림자 피하기</button>
     </div>
   </header>
@@ -254,6 +262,10 @@ button{touch-action:manipulation}
           <span class="op"><span class="v">a</span> +</span>
           <button class="chip tb" id="ct" type="button" disabled><span>t</span><strong>?</strong><em>멈춤</em></button>
           <span class="op"><span class="v">b</span></span>
+        </div>
+        <div class="readout" id="wro" hidden aria-live="off">
+          <div class="ro"><span>회전각</span><strong id="wro-th">θ = 0°</strong></div>
+          <div class="ro wide"><span>단위벡터</span><strong id="wro-u"><span class="v">u</span> = (1.00, 0.00)</strong></div>
         </div>
         <div class="shapes" id="shapes" hidden role="group" aria-label="입체도형 고르기">
           <button class="shape" type="button" data-shape="tri" aria-pressed="false">삼각기둥</button>
@@ -338,7 +350,7 @@ button{touch-action:manipulation}
       </div>
     </aside>
   </main>
-  <footer class="site-foot">v1.2 · 2026.10.21 · © 2026 <a class="foot-link" href="https://www.instagram.com/chantteacher_math/" target="_blank" rel="noopener" title="찬T 인스타그램 @chantteacher_math">찬T</a> · 링크 공유 OK · 무단 복제·재배포 금지</footer>
+  <footer class="site-foot">v1.3 · 2026.10.22 · © 2026 <a class="foot-link" href="https://www.instagram.com/chantteacher_math/" target="_blank" rel="noopener" title="찬T 인스타그램 @chantteacher_math">찬T</a> · 링크 공유 OK · 무단 복제·재배포 금지</footer>
 </div>
 
 <script>
@@ -412,7 +424,7 @@ function build(){
 function assign(){
   sphere=students.map((s,i)=>({...slotsS[state.permS[i]],st:i}));
   grid.forEach(g=>g.st=-1);students.forEach((s,i)=>{grid[state.permG[i]].st=i});
-  renderMap();poolLayout();NG.layout();if(state.mode==='marble'&&!mb.running)lineup();
+  renderMap();poolLayout();NG.layout();WH.layout();if(state.mode==='marble'&&!mb.running)lineup();
 }
 function renderMap(){
   const {a,b,c}=dimsG;
@@ -425,6 +437,7 @@ function renderRule(){
   const key='<span class="key"> · 스페이스 키로도 누를 수 있어요</span>';
   if(state.mode==='sphere'){
     $('#rule').innerHTML=`구 <code>x²+y²+z²=9</code> 위에 ${students.length}명이 있어요. 좌표축은 그대로 두고 구만 돌아가요. <b>도장 찍기</b>를 누르면 도장이 구를 쾅 찍어 멈추고 <b>파란 점 A</b>를 남겨요. 그리고 A에서 <b>가장 가까운 점 P</b>에 빨간 동그라미를 쳐요.${key}`;
+  }else if(state.mode==='wheel'){$('#rule').innerHTML=WH.rule()+key;
   }else if(state.mode==='vec'||state.mode==='sh'){$('#rule').innerHTML=NG.rule(state.mode)+key;
   }else if(state.mode==='pool'){
     $('#rule').innerHTML=`당구대 칸마다 학생이 있어요. 시작 → <b>방향 고정</b>으로 방향 <b><span class="v">d</span></b>를 정하고, 큐대가 앞뒤로 움직일 때 <b>샷!</b>을 눌러 속도 <code><span class="v">v</span> = |<span class="v">v</span>|<span class="v">d</span></code>의 크기를 정해요. 많이 당길수록 |<span class="v">v</span>|가 커서 멀리 가요. 쿠션에서는 <code><span class="v">v′</span> = <span class="v">v</span> − 2(<span class="v">v</span>·<span class="v">n</span>)<span class="v">n</span></code>으로 반사되고, 공이 멈춘 칸의 학생이 발표해요.${key}`;
@@ -1221,6 +1234,172 @@ return {RULE_VEC,RULE_SH,enter,go,layout,vecStop,pickShape,
   rule(m){return m==='vec'?RULE_VEC:RULE_SH}};
 })();
 
+/* ---------- 7. 단위벡터 돌림판: the unit vector u = (cos θ, sin θ) spins about O, pegs on every border ---------- */
+const WH=(()=>{
+let ctx=cv.getContext('2d');
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const norm=a=>((a%TAU)+TAU)%TAU,nm=s=>s.name||String(s.n),esc2=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const done=()=>state.exclude?picked():new Set();
+function hud(t){$('#hud').innerHTML=t}
+let lastTick=0;
+function tick(k=1){const AC=soundOn&&audio();if(!AC)return;const now=AC.currentTime;if(now-lastTick<.03)return;lastTick=now;
+  const o=AC.createOscillator(),g=AC.createGain();o.type='triangle';o.frequency.value=1500+Math.random()*200;g.gain.setValueAtTime(.05*k,now);g.gain.exponentialRampToValueAtTime(.0008,now+.05);o.connect(g).connect(AC.destination);o.start(now);o.stop(now+.06)}
+function ding(){const AC=soundOn&&audio();if(!AC)return;const now=AC.currentTime;[880,1320].forEach((f,i)=>{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(.0001,now+i*.09);g.gain.exponentialRampToValueAtTime(.12,now+i*.09+.02);g.gain.exponentialRampToValueAtTime(.0001,now+i*.09+.5);o.connect(g).connect(AC.destination);o.start(now+i*.09);o.stop(now+i*.09+.55)})}
+/* ---------- state: the arrow is the unit vector u = (cos φ, sin φ); φ is measured from the positive x-axis, counter-clockwise ---------- */
+const G={phi:Math.PI/6,omega:0,phase:'idle',t:0,stop:null,turn:0,win:-1,last:-1,bulb:0,start:0};
+const W_=()=>TAU/students.length;                 // central angle of one sector
+const sectorAt=a=>Math.floor(norm(a)/W_())%students.length;
+let perm=[];const who=sec=>perm[sec];                          // student index sitting in a sector
+
+/* exact values for the special angles, otherwise two decimals */
+const EX={0:['1','0'],30:['√3/2','1/2'],45:['√2/2','√2/2'],60:['1/2','√3/2'],90:['0','1'],120:['−1/2','√3/2'],135:['−√2/2','√2/2'],150:['−√3/2','1/2'],180:['−1','0'],
+  210:['−√3/2','−1/2'],225:['−√2/2','−√2/2'],240:['−1/2','−√3/2'],270:['0','−1'],300:['1/2','−√3/2'],315:['√2/2','−√2/2'],330:['√3/2','−1/2']};
+const f2=v=>{const r=Math.round(v*100)/100;return (Object.is(r,-0)?0:r).toFixed(2).replace('-','−')};
+const deg=a=>Math.round(norm(a)*180/Math.PI)%360;
+
+function layout(){const N=students.length,ps=isPerm(state.permS,N)?state.permS:students.map((s,i)=>i);perm=[];ps.forEach((seat,i)=>perm[seat]=i);G.win=-1;if(G.phase!=='spin'&&G.phase!=='stop')G.phase='idle'}
+
+/* ---------- start / stop ---------- */
+const OMAX=reduce?8:20;   // rad/s at full spin (about two turns a second)
+function start(){if(!eligibleIdx().length)return allDone();
+  audio();$('#result').hidden=true;winner=-1;G.win=-1;G.phase='spin';G.t=0;G.start=G.phi;G.turn=0;setBusy(true);setGo('스톱!','stop');hud('단위벡터 <span class="v">u</span>가 원점 O를 중심으로 돌아요. <span class="k">스톱!</span>')}
+/* stop: from the moment 스톱! is pressed the arrow is a little physical system —
+   friction slows it, and every peg on the rim is a small hill it has to climb over
+   (potential A(1+cos Nφ): hills on the sector borders, valleys at the sector centres).
+   Near the end it creeps up a peg, hesitates on top… and either just tips over or rolls back.
+   The friction is tuned beforehand (bisection) so that it settles in a sector of a student not yet picked. */
+const HZ=240,PEG_V=.7;
+const TALLY={over:0,back:0};                 // speed (rad/s) needed to get over a peg at the very end
+// each peg is a small smooth bump the flapper has to push over (only felt within ±cw of the peg);
+// between pegs the arrow just glides and slows down, so it can come to rest anywhere inside a sector
+function simulate(phi0,w0,mu,rec){const N=students.length,w=TAU/N,cw=Math.min(w*.2,.1),Hh=PEG_V*PEG_V/2,kk=Math.PI/(2*cw),dt=1/HZ;let p=phi0,v=w0,t=0;const tr=rec?[p]:null;
+  while(t<22){const d=p-Math.round(p/w)*w,F=Math.abs(d)<cw?Hh*kk*Math.sin(2*kk*d):0,on=Math.abs(d)<cw,b=1.2*v*v/(v*v+8)+(on?(v*d>0?.12+25/(1+v*v*3):.12):.15+6/(1+v*v*4));
+    const a=F-mu*Math.tanh(v/.25)-b*v;v+=a*dt;p+=v*dt;t+=dt;if(rec)tr.push(p);
+    if(t>.8&&Math.abs(v)<.012&&Math.abs(d)>=cw*.97)break}
+  return {end:p,tr}}
+function stop(){if(G.phase!=='spin')return;const w=W_(),N=students.length,dn=done(),phi0=G.phi,w0=G.omega;
+  const fk=mu=>Math.floor(simulate(phi0,w0,mu).end/w);       // unwrapped index of the sector it settles in
+  const k0=Math.floor(phi0/w),kMax=fk(0),kMin=fk(40);
+  const ok=k=>!dn.has(students[who(((k%N)+N)%N)].n);
+  // aim for roughly one and a half to two and a half turns
+  let ks=[];for(let k=Math.max(kMin+1,k0+Math.round(N*2.2));k<=Math.min(kMax-1,k0+Math.round(N*4));k++)if(ok(k))ks.push(k);
+  if(!ks.length)for(let k=kMin+1;k<kMax;k++)if(ok(k))ks.push(k);
+  // over or back: keep the two endings half and half (whichever has happened less so far goes next; a coin toss when level)
+  const want=TALLY.over<TALLY.back?'over':TALLY.back<TALLY.over?'back':(Math.random()<.5?'over':'back');
+  const edge=k=>{let lo=0,hi=40;for(let i=0;i<52;i++){const m=(lo+hi)/2;if(fk(m)<=k)hi=m;else lo=m}return hi};
+  const order=ks.slice().sort(()=>Math.random()-.5).slice(0,6);
+  let pick=null,how='',tk=order[0];
+  for(const pass of [want,want==='over'?'back':'over','']){
+    for(const k of order){const muA=edge(k),muB=edge(k-1),eps=Math.pow(10,-4.5-Math.random()*3);
+      const m=pass==='back'?muA*(1+eps):pass==='over'?muB*(1-eps):(muA+muB)/2;const r=simulate(phi0,w0,m,true);
+      if(Math.floor(r.end/w)===k){pick=r;how=pass;tk=k;break}}
+    if(pick)break}
+  if(!pick){const muA=edge(tk),muB=edge(tk-1);pick=simulate(phi0,w0,(muA+muB)/2,true)}
+  if(how)TALLY[how]++;
+  // slow motion at the last peg: stretch the moments around the final peg top so 'over or not?' lasts about 2.5 s,
+  // then play the settling a little faster. The path itself is unchanged, only how fast it is shown.
+  const tr=pick.tr,n=tr.length,cs=tr.map(q=>Math.cos(N*q));let h=-1;
+  for(let i=n-1;i>0;i--){if(cs[i]>.6){h=i;break}}            // the last time the tip was near a peg top
+  let a=h,b=h;if(h>0){while(a>0&&cs[a-1]>.6)a--;let best=a;for(let i=a;i<=h;i++)if(cs[i]>cs[best])best=i;b=h}
+  const T=new Float64Array(n);let acc=0;const zone=h>0?(b-a+1)/HZ:0,slow=zone>0?clamp(.9/zone,1,2.5):1;
+  for(let i=0;i<n;i++){const f=h>0&&i>=a&&i<=b?slow:1;acc+=f/HZ;T[i]=acc}
+  G.stop={tr,T,j:0,za:a,zb:b,k:tk,how};G.phase='stop';G.t=0;setGo('멈춤!','stop',true);hud('점점 느려져요… 화살표 끝이 기둥을 <span class="k">넘어갈까, 말까?</span>')}
+const fdeg=a=>{const d=Math.round(norm(a)*180/Math.PI*10)/10%360;return Number.isInteger(d)?String(d):d.toFixed(1)};
+function finish(){G.phase='done';const w=W_(),sec=sectorAt(G.phi);G.omega=0;   // it rests wherever it stopped between two pegs
+  const i=who(sec),st=students[i],dS=fdeg(G.phi),dN=+dS;G.win=sec;
+  const ex=Number.isInteger(dN)?EX[dN]:null,c=Math.cos(norm(G.phi)),s=Math.sin(norm(G.phi)),comp=ex?`(${ex[0]}, ${ex[1]})`:`(${f2(c)}, ${f2(s)})`;
+  const total=G.phi-G.start,turns=Math.floor(total/TAU+1e-9),rest=Math.round((total-turns*TAU)*180/Math.PI);
+  const how=G.stop.how==='back'?'앗, 기둥을 못 넘고 되돌아왔어요!':G.stop.how==='over'?'아슬아슬하게 기둥을 넘었어요!':'';
+  ding();hud(`${how} <span class="k">${esc2(nm(st))}</span> 당첨! θ = ${dS}°`);
+  result(i,'단위벡터 돌림판',`θ = ${dS}°`,[`<span><b>θ = ${dS}°</b> · 이번에 돈 각 ${turns}바퀴 + ${rest}°</span>`,`<span><b><span class="v">u</span> = (cos ${dS}°, sin ${dS}°) = ${comp}</b></span>`,`<span>|<span class="v">u</span>| = 1 · ${students.length}칸 중 ${sec+1}번째 칸 (${(sec*360/students.length).toFixed(1)}° ~ ${((sec+1)*360/students.length).toFixed(1)}°)</span>`])}
+function allDone(){say('모두 발표했어요. 기록을 지우면 처음부터 다시 뽑을 수 있어요.',true)}
+function step(dt){G.bulb+=dt;
+  const prev=G.phi;
+  if(G.phase==='idle'){G.phi+=dt*.35}
+  else if(G.phase==='spin'){G.t+=dt;G.omega=OMAX*Math.min(1,G.t/.5);G.phi+=G.omega*dt}
+  else if(G.phase==='stop'){G.t+=dt;const S=G.stop,tr=S.tr;while(S.j<tr.length-1&&S.T[S.j]<G.t)S.j++;const j=S.j;G.omega=j>0?(tr[j]-tr[j-1])*HZ:G.omega;
+    // interpolate between samples so even the slowest part moves smoothly
+    if(j>0&&j<tr.length-1){const t0=S.T[j-1],t1=S.T[j],u=clamp((G.t-t0)/((t1-t0)||1),0,1);G.phi=tr[j-1]+(tr[j]-tr[j-1])*u}else G.phi=tr[j];
+    if(j>=S.za&&j<=S.zb&&!S.said){S.said=1;hud('기둥 꼭대기에서… <span class="k">넘어갈까? 말까?</span>')}if(j>=tr.length-1)finish()}
+  if(G.phase!=='idle'&&G.phase!=='done'){G.turn+=G.phi-prev;const sec=Math.floor(G.phi/W_());if(sec!==G.last){G.last=sec;tick(G.phase==='stop'?1.4:1)}}
+  const c=Math.cos(norm(G.phi)),s=Math.sin(norm(G.phi));
+  $('#wro-th').textContent=`θ = ${G.phase==='done'?fdeg(G.phi):deg(G.phi)}°`;$('#wro-u').innerHTML=`<span class="v">u</span> = (${f2(c)}, ${f2(s)})`}
+
+/* ---------- drawing ---------- */
+function draw(){
+  const mark=css('--mark'),body=css('--body'),mono=css('--mono');
+  const top=W<600?58:0,cx=W/2,cy=(H+top)/2+4,R=Math.min(W,H-top)/2-42,r0=R*.36,N=students.length,w=W_(),dn=done();
+  const X=(a,r)=>cx+Math.cos(a)*r,Y=(a,r)=>cy-Math.sin(a)*r;   // math angle → screen
+  const cur=sectorAt(G.phi);
+  // glow behind the wheel
+  const gl=ctx.createRadialGradient(cx,cy,R*.6,cx,cy,R*1.35);gl.addColorStop(0,'rgba(56,225,255,.18)');gl.addColorStop(1,'rgba(56,225,255,0)');ctx.fillStyle=gl;ctx.beginPath();ctx.arc(cx,cy,R*1.35,0,TAU);ctx.fill();
+  // sectors (counter-clockwise from the positive x-axis), each one a student
+  for(let k=0;k<N;k++){const i=who(k),st=students[i],picked=dn.has(st.n)&&G.win!==k,a0=k*w,a1=(k+1)*w;
+    const hue=(k/N)*360,lit=(k===cur&&G.phase!=='idle')||k===G.win;
+    ctx.beginPath();ctx.moveTo(X(a0,r0),Y(a0,r0));ctx.arc(cx,cy,R,-a0,-a1,true);ctx.arc(cx,cy,r0,-a1,-a0,false);ctx.closePath();
+    if(picked)ctx.fillStyle='#1e2350';else{const g=ctx.createRadialGradient(cx,cy,r0,cx,cy,R);g.addColorStop(0,`hsl(${hue} 85% ${lit?62:42}%)`);g.addColorStop(1,`hsl(${hue} 95% ${lit?72:55}%)`);ctx.fillStyle=g}
+    ctx.fill();ctx.strokeStyle='rgba(10,13,34,.55)';ctx.lineWidth=1.2;ctx.stroke();
+    if(k===G.win){ctx.save();ctx.shadowColor='#fff';ctx.shadowBlur=24;ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();ctx.restore()}
+    // the name, written along the radius and kept upright
+    const mid=(k+.5)*w,arc=w*R*.72,fs=clamp(Math.min(arc*.62,R*.075),9,20);ctx.save();ctx.translate(cx,cy);ctx.rotate(-mid);
+    const flip=Math.cos(mid)<0;if(flip)ctx.rotate(Math.PI);
+    ctx.font=`700 ${Math.round(fs*(k===G.win?1.12:1))}px ${body}`;ctx.textBaseline='middle';ctx.textAlign=flip?'left':'right';
+    ctx.globalAlpha=picked?.35:1;ctx.lineJoin='round';ctx.lineWidth=3;ctx.strokeStyle='rgba(10,13,34,.55)';const tx=flip?-(R-10):(R-10);
+    ctx.strokeText(nm(st),tx,0,R-r0-16);ctx.fillStyle='#fff';ctx.fillText(nm(st),tx,0,R-r0-16);ctx.restore()}
+  // inner disc: the coordinate plane around the origin
+  ctx.beginPath();ctx.arc(cx,cy,r0,0,TAU);const id=ctx.createRadialGradient(cx,cy,0,cx,cy,r0);id.addColorStop(0,'#151b48');id.addColorStop(1,'#0c1033');ctx.fillStyle=id;ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,.25)';ctx.lineWidth=1.5;ctx.stroke();
+  // pegs: a little gold post on every border between two sectors
+  {const pr=R*.935,ps=clamp(R*.018,3,6);for(let k=0;k<N;k++){const a=k*w,px=X(a,pr),py=Y(a,pr);
+    ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.arc(px+1.5,py+2,ps,0,TAU);ctx.fill();
+    const g=ctx.createRadialGradient(px-ps*.35,py-ps*.35,ps*.1,px,py,ps);g.addColorStop(0,'#fffbe6');g.addColorStop(.5,'#f3c64a');g.addColorStop(1,'#9a6b10');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,ps,0,TAU);ctx.fill()}}
+  // gold rim with blinking bulbs
+  ctx.beginPath();ctx.arc(cx,cy,R+9,0,TAU);ctx.strokeStyle='#e7b43a';ctx.lineWidth=14;ctx.stroke();
+  ctx.beginPath();ctx.arc(cx,cy,R+16,0,TAU);ctx.strokeStyle='rgba(255,236,170,.6)';ctx.lineWidth=1.5;ctx.stroke();
+  const NB=28,spinning=G.phase==='spin'||G.phase==='stop';for(let b=0;b<NB;b++){const a=b*TAU/NB,on=spinning?((b+Math.floor(G.bulb*10))%2===0):(G.phase==='done'?Math.floor(G.bulb*4)%2===b%2:true);
+    ctx.fillStyle=on?'#fff8d6':'#8a6a1c';ctx.beginPath();ctx.arc(X(a,R+9),Y(a,R+9),3.2,0,TAU);ctx.fill()}
+  // axes through the origin
+  const ax=(a,l)=>{const L=R+24;ctx.strokeStyle='rgba(238,241,255,.55)';ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(X(a+Math.PI,L-6),Y(a+Math.PI,L-6));ctx.lineTo(X(a,L),Y(a,L));ctx.stroke();
+    const tx=X(a,L),ty=Y(a,L),h=8;ctx.fillStyle='rgba(238,241,255,.8)';ctx.beginPath();ctx.moveTo(tx,ty);ctx.lineTo(tx-h*Math.cos(a)+h*.5*Math.sin(a),ty+h*Math.sin(a)+h*.5*Math.cos(a));ctx.lineTo(tx-h*Math.cos(a)-h*.5*Math.sin(a),ty+h*Math.sin(a)-h*.5*Math.cos(a));ctx.fill();
+    ctx.font='italic 600 16px Georgia,serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(l,X(a,L+13)+(a?10:0),Y(a,L+13)+(a?0:-10))};
+  ax(0,'x');ax(Math.PI/2,'y');
+  // angle θ: an arc from the positive x-axis to the arrow
+  const th=norm(G.phi),ar=r0*.5;ctx.save();ctx.strokeStyle=mark;ctx.lineWidth=2.4;ctx.beginPath();ctx.arc(cx,cy,ar,0,-th,true);ctx.stroke();
+  ctx.font=`italic 700 15px Georgia,serif`;ctx.fillStyle=mark;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('θ',X(th/2,ar+13),Y(th/2,ar+13));ctx.restore();
+  // the unit vector u: from O to the wheel
+  const Lr=R*.86,tx=X(G.phi,Lr),ty=Y(G.phi,Lr);
+  if(G.phase==='done'){ // components: cos θ on the x-axis, sin θ on the y-axis
+    const ux=X(G.phi,Lr),uy=Y(G.phi,Lr);ctx.save();ctx.setLineDash([5,5]);ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=1.6;
+    ctx.beginPath();ctx.moveTo(ux,uy);ctx.lineTo(ux,cy);ctx.moveTo(ux,uy);ctx.lineTo(cx,uy);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#6dffc0';ctx.beginPath();ctx.arc(ux,cy,4,0,TAU);ctx.arc(cx,uy,4,0,TAU);ctx.fill();
+    pill('cos θ',ux,cy+(Math.sin(G.phi)>=0?18:-18),'#6dffc0',mono);pill('sin θ',cx+(Math.cos(G.phi)>=0?-44:44),uy,'#6dffc0',mono);ctx.restore()}
+  ctx.save();ctx.shadowColor=mark;ctx.shadowBlur=18;arrow(cx,cy,tx,ty,mark,7);ctx.restore();
+  // short rubber flapper at the tip: it presses against the peg it is climbing (bent back, most of all right at the top)
+  // and flips the other way once it slips past
+  {const pa=Math.round(G.phi/w)*w,d=G.phi-pa,c=Math.min(w*.2,.1)*1.15,k=Math.abs(d)<c?Math.pow(1-Math.abs(d)/c,.6):0,bend=Math.sign(d||-1)*1.05*k,
+    L0=Lr-2,FL=R*.095,bx=X(G.phi,L0),by=Y(G.phi,L0),fx=bx+Math.cos(G.phi+bend)*FL,fy=by-Math.sin(G.phi+bend)*FL;
+    ctx.save();ctx.strokeStyle='#ff3d81';ctx.lineWidth=6;ctx.lineCap='round';ctx.shadowColor='#ff3d81';ctx.shadowBlur=10;ctx.beginPath();ctx.moveTo(bx,by);ctx.quadraticCurveTo(bx+Math.cos(G.phi+bend*.4)*FL*.6,by-Math.sin(G.phi+bend*.4)*FL*.6,fx,fy);ctx.stroke();ctx.restore()}
+  // u label beside the arrow
+  {const la=G.phi+.16,lx=X(la,R*.58),ly=Y(la,R*.58);ctx.font='italic 700 22px Georgia,serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineWidth=4;ctx.strokeStyle='rgba(10,13,34,.9)';
+    ctx.strokeText('u',lx,ly);ctx.fillStyle=mark;ctx.fillText('u',lx,ly);vecMark(lx,ly-15,mark)}
+  // hub at the origin
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(cx,cy,6,0,TAU);ctx.fill();ctx.strokeStyle=mark;ctx.lineWidth=2;ctx.stroke();
+  ctx.font='italic 700 17px Georgia,serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=4;ctx.strokeStyle='rgba(10,13,34,.9)';ctx.strokeText('O',cx-14,cy+15);ctx.fillText('O',cx-14,cy+15);
+}
+function arrow(x1,y1,x2,y2,col,w){const a=Math.atan2(y2-y1,x2-x1),h=w*3.4;ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=w;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2-Math.cos(a)*h*.7,y2-Math.sin(a)*h*.7);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-h*Math.cos(a-.42),y2-h*Math.sin(a-.42));ctx.lineTo(x2-h*Math.cos(a+.42),y2-h*Math.sin(a+.42));ctx.closePath();ctx.fill();ctx.lineCap='butt'}
+function vecMark(x,y,col){ctx.save();ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=2.2;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x-7,y);ctx.lineTo(x+4,y);ctx.stroke();ctx.beginPath();ctx.moveTo(x+8,y);ctx.lineTo(x+2,y-3.6);ctx.lineTo(x+2,y+3.6);ctx.closePath();ctx.fill();ctx.restore()}
+function pill(t,x,y,col,mono){ctx.font=`700 13px ${mono}`;const w=ctx.measureText(t).width+12;ctx.fillStyle='rgba(10,13,34,.85)';ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x-w/2,y-10,w,20,7);else ctx.rect(x-w/2,y-10,w,20);ctx.fill();
+  ctx.fillStyle=col;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,x,y+1)}
+
+const RULE='화살표는 원점 O에서 나가는 <b>단위벡터</b> <code><span class="v">u</span> = (cos θ, sin θ)</code>예요. <b>시작</b>을 누르면 원점을 중심으로 빙글빙글 돌고, <b>스톱!</b>을 누르면 바로 느려지기 시작해요. 칸마다 경계에 <b>기둥</b>이 있어서, 느려진 화살표 끝이 기둥을 넘어갈 듯 말 듯하다가 한 칸에 멈춰요. <span class="v">u</span>가 가리키는 칸의 학생이 발표! x축의 양의 방향에서 잰 <b>회전각 θ</b>와 <span class="v">u</span>의 성분을 함께 보여 줘요.';
+function enter(){$('#hud').hidden=false;if(G.phase!=='spin'&&G.phase!=='stop'){G.phase='idle';G.win=-1}hud(`${students.length}명이 원 둘레에 앉아 있어요. 한 칸은 ${(360/students.length).toFixed(1)}°예요`)}
+function go(){if(G.phase==='spin')stop();else if(G.phase==='idle'||G.phase==='done')start()}
+return {rule:()=>RULE,enter,go,layout,step,draw};
+})();
+
 /* ---------- animation ---------- */
 let last=performance.now();
 function frame(t){
@@ -1243,13 +1422,14 @@ function frame(t){
     if(roll.tick>.07){roll.tick=0;for(let k=0;k<3;k++)if(!roll.fixed[k])roll.cur[k]=1+Math.floor(Math.random()*D[k]);updateChips()}
   }
   if(state.mode==='vec'||state.mode==='sh')NG.step(dt);
+  if(state.mode==='wheel')WH.step(dt);
   if(state.mode==='pool')stepPool(dt);
   if(state.mode==='marble')stepMarble(dt);
   else if(!busy&&!drag&&$('#result').hidden&&!reduce){
     if(state.mode==='sphere'&&!stamp)turn([0,1,0],dt*.25)}
   if(W>0){const c=colors();ctx.setTransform(cv.width/W,0,0,cv.height/H,0,0);ctx.clearRect(0,0,W,H);
     if(state.mode==='sphere'&&stamp&&stamp.t>=STAMP_DROP&&stamp.t<STAMP_DROP+.12&&!reduce){const k=(1-(stamp.t-STAMP_DROP)/.12)*7;ctx.translate((Math.random()-.5)*k,(Math.random()-.5)*k)}
-    state.mode==='sphere'?drawSphere(c):state.mode==='dice'?drawDice(c):state.mode==='pool'?drawPool(c):state.mode==='vec'||state.mode==='sh'?NG.draw():drawMarble(c)}
+    state.mode==='sphere'?drawSphere(c):state.mode==='dice'?drawDice(c):state.mode==='pool'?drawPool(c):state.mode==='vec'||state.mode==='sh'?NG.draw():state.mode==='wheel'?WH.draw():drawMarble(c)}
   requestAnimationFrame(frame);
 }
 
@@ -1269,6 +1449,7 @@ function renderRank(){
 }
 function toggle(){
   if(state.mode==='vec'||state.mode==='sh'){NG.go();return}
+  if(state.mode==='wheel'){WH.go();return}
   if(state.mode==='pool'){
     audio();
     if(pl.phase==='aim'){poolLockDir();setGo('샷!','stop');return}
@@ -1380,12 +1561,12 @@ function shuffle(){
 function setMode(m){
   state.mode=m;$('#result').hidden=true;winner=-1;cur=-1;stamp=null;
   document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.mode===m));
-  const ng=m==='vec'||m==='sh';$('#vchips').hidden=m!=='vec';$('#shapes').hidden=m!=='sh';$('#hud').hidden=!ng;$('#hint').hidden=ng;if(ng)NG.enter(m);
+  const ng=m==='vec'||m==='sh'||m==='wheel';$('#vchips').hidden=m!=='vec';$('#shapes').hidden=m!=='sh';$('#wro').hidden=m!=='wheel';{const rs=$('#result');if(m==='wheel'){if(rs.parentNode===stage)stage.after(rs);rs.classList.add('below')}else{if(rs.parentNode!==stage)stage.appendChild(rs);rs.classList.remove('below')}}$('#hud').hidden=!ng;$('#hint').hidden=ng;if(m==='wheel')WH.enter();else if(ng)NG.enter(m);
   $('#chips').hidden=m!=='dice';$('#map-card').hidden=m!=='dice';$('#rankbox').hidden=m!=='marble';$('#race-card').hidden=m!=='marble';
   $('#hint').textContent=m==='pool'?'':m==='marble'?'드래그하면 위아래로 볼 수 있어요':m==='sphere'?'드래그: 구 돌리기 · ＋/－ 또는 Ctrl+휠: 확대·축소':'드래그: 회전 · ＋/－ 또는 Ctrl+휠: 확대·축소';
   if(m==='marble'){renderRank();lineup()}
   setGo('시작');
-  view={yaw:-0.55,pitch:m==='sphere'?0.35:0.38,zoom:1};$('#zoom').hidden=m==='marble'||m==='pool'||m==='vec'||m==='sh';$('#snd').hidden=m!=='pool';stage.classList.toggle('scrollable',m==='pool');if(m==='pool'){pl.phase='idle';pl.s=0;pl.ev=[]}resetChips();renderRule();save();
+  view={yaw:-0.55,pitch:m==='sphere'?0.35:0.38,zoom:1};$('#zoom').hidden=m==='marble'||m==='pool'||m==='vec'||m==='sh'||m==='wheel';$('#snd').hidden=m!=='pool'&&m!=='wheel';stage.classList.toggle('scrollable',m==='pool');if(m==='pool'){pl.phase='idle';pl.s=0;pl.ev=[]}resetChips();renderRule();save();
 }
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{if(!busy)setMode(t.dataset.mode)}));
 let pressGo=false;
@@ -1425,11 +1606,11 @@ $('#zin').addEventListener('click',()=>zoomBy(1.2));
 $('#zout').addEventListener('click',()=>zoomBy(1/1.2));
 $('#zreset').addEventListener('click',()=>{view.yaw=-0.55;view.pitch=state.mode==='sphere'?0.35:0.38;view.zoom=1;if(state.mode==='sphere'&&!busy&&!stamp)Q=[1,0,0,0,1,0,0,0,1]});
 // a plain wheel scrolls the page; Ctrl + wheel (and trackpad pinch) zooms the 3D view
-cv.addEventListener('wheel',e=>{if(!e.ctrlKey||state.mode==='pool'||state.mode==='marble'||state.mode==='vec'||state.mode==='sh')return;e.preventDefault();zoomBy(Math.exp(-e.deltaY*.004))},{passive:false});
+cv.addEventListener('wheel',e=>{if(!e.ctrlKey||state.mode==='pool'||state.mode==='marble'||state.mode==='vec'||state.mode==='sh'||state.mode==='wheel')return;e.preventDefault();zoomBy(Math.exp(-e.deltaY*.004))},{passive:false});
 $('#fs').addEventListener('click',()=>{try{const p=document.fullscreenElement?document.exitFullscreen():stage.requestFullscreen();p&&p.catch&&p.catch(()=>{})}catch(e){}});
 
 const pdist=()=>{const [a,b]=[...pointers.values()];return Math.hypot(a.x-b.x,a.y-b.y)};
-cv.addEventListener('pointerdown',e=>{if(state.mode==='pool'||state.mode==='vec'||(busy&&state.mode!=='dice'&&state.mode!=='sh'&&!(state.mode==='marble'&&mb.paused)))return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+cv.addEventListener('pointerdown',e=>{if(state.mode==='pool'||state.mode==='vec'||state.mode==='wheel'||(busy&&state.mode!=='dice'&&state.mode!=='sh'&&!(state.mode==='marble'&&mb.paused)))return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pointers.size===2&&state.mode!=='marble'){pinch=pdist();drag=null}else if(pointers.size===1)drag={x:e.clientX,y:e.clientY};
   cv.setPointerCapture(e.pointerId)});
 cv.addEventListener('pointermove',e=>{if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
@@ -1488,7 +1669,7 @@ state.classes=saved&&Array.isArray(saved.classes)&&saved.classes.length?saved.cl
   [{id:uid(),name:'1반',count:(saved&&saved.count)||35,names:(saved&&saved.names)||'',history:saved&&Array.isArray(saved.history)?saved.history:[],permS:saved&&saved.permS,permG:saved&&saved.permG}];
 state.cur=saved&&state.classes.some(k=>k.id===saved.cur)?saved.cur:state.classes[0].id;
 if(saved){state.exclude=saved.exclude!==false;state.rank=saved.rank||'1';$('#exclude').checked=state.exclude}
-state.mode=saved&&['dice','marble','pool','vec','sh'].includes(saved.mode)?saved.mode:'sphere';
+state.mode=saved&&['dice','marble','pool','sh','wheel'].includes(saved.mode)?saved.mode:saved&&saved.mode==='vec'?'wheel':'sphere';
 loadClass(state.cur);resize();
 requestAnimationFrame(frame);
 </script>

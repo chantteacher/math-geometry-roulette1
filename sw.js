@@ -1,6 +1,6 @@
 // 기하 수업 룰렛 service worker: lets the app install and open offline.
 // Pages are fetched fresh when online (so updates show up right away) and fall back to the saved copy offline.
-const CACHE = 'geo-roulette-v3';
+const CACHE = 'geo-roulette-v9';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {
