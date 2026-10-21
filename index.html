@@ -179,6 +179,7 @@ details summary{cursor:pointer;font-size:14px;font-weight:500}
 .go,.go.stop{font-family:'BHS Button',var(--display);font-weight:400;font-synthesis:none;-webkit-text-fill-color:currentColor;white-space:nowrap}
 .go.stop:disabled{opacity:1;cursor:default}
 .font-warm{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;font-family:'BHS Button'}
+button{touch-action:manipulation}
 @media (prefers-reduced-motion: reduce){.result,.go,.go.stop,.eyebrow i{animation:none}}
 </style>
 </head>
@@ -974,7 +975,7 @@ function drawVec(){
   const Ppx=VS(vxy(V.cur[0],V.cur[1])),Spx=VS(vxy(V.cur[0],0));
   const [s,t]=V.cur;
   // 1) s·a is drawn as soon as s is fixed: a red arrow growing from O, with a dot at every whole multiple of a
-  if(V.fixed[0]&&s){const u=V.phase==='done'?1:ss(clamp(V.sT/0.75,0,1)),tip=vxy(s*u,0);
+  if(V.fixed[0]&&s){const u=V.phase==='done'?1:ss(clamp(V.sT/0.32,0,1)),tip=vxy(s*u,0);
     for(let k=1;k<=Math.abs(s);k++){if(k>Math.abs(s)*u+1e-6)break;ctx.fillStyle=mark;ctx.beginPath();ctx.arc(...VS(vxy(Math.sign(s)*k,0)),4,0,TAU);ctx.fill()}
     arrowPx(...O,...VS(tip),mark,7);if(u>.6){const m=beside(O,Spx,V.fixed[1]&&t?Ppx:null,22);label(term(s,'{a}',true),m[0],m[1],mark,17)}}
   if(V.fixed[0]&&!s)label('0{a} = {0} (제자리)',O[0],O[1]+44,mark,15);
@@ -982,12 +983,12 @@ function drawVec(){
   if(V.phase==='roll'&&!V.fixed[0]&&s)arrowPx(...O,...VS(vxy(s,0)),'rgba(255,210,63,.7)',3.5,[6,6]);
   const base=V.fixed[0]?vxy(s,0):[0,0];
   // while t is still rolling, a faint dashed preview of t·b from the tip of s·a
-  if(V.phase==='roll'&&V.fixed[0]&&!V.fixed[1]&&t&&V.sT>.75)arrowPx(...VS(base),...VS([base[0]+t*B[0],base[1]+t*B[1]]),'rgba(255,210,63,.7)',3.5,[6,6]);
+  if(V.phase==='roll'&&V.fixed[0]&&!V.fixed[1]&&t&&V.sT>.32)arrowPx(...VS(base),...VS([base[0]+t*B[0],base[1]+t*B[1]]),'rgba(255,210,63,.7)',3.5,[6,6]);
   // 2) t·b grows from the tip once t is fixed
-  if(V.fixed[1]&&t){const u=V.phase==='done'?1:ss(clamp(V.tT/0.8,0,1)),tip=[base[0]+t*u*B[0],base[1]+t*u*B[1]];
+  if(V.fixed[1]&&t){const u=V.phase==='done'?1:ss(clamp(V.tT/0.38,0,1)),tip=[base[0]+t*u*B[0],base[1]+t*u*B[1]];
     arrowPx(...VS(base),...VS(tip),mark,7);if(u>.6){const m=beside(VS(base),Ppx,s?O:null,24,.38);label(term(t,'{b}',true),m[0],m[1],mark,17)}}
   // 3) the result: OP grows straight from O to P (= sa + tb), with flowing dashes showing its direction, and P is marked
-  if(V.phase==='done'){const P0=vxy(s,t),d=VS(P0),u=ss(clamp(V.oT/0.7,0,1)),tip=[O[0]+(d[0]-O[0])*u,O[1]+(d[1]-O[1])*u],mint='#6dffc0';
+  if(V.phase==='done'){const P0=vxy(s,t),d=VS(P0),u=ss(clamp(V.oT/0.45,0,1)),tip=[O[0]+(d[0]-O[0])*u,O[1]+(d[1]-O[1])*u],mint='#6dffc0';
     ctx.save();ctx.shadowColor=mint;ctx.shadowBlur=16;arrowPx(...O,...tip,mint,6);ctx.restore();
     if(u>.05){ctx.save();ctx.strokeStyle='rgba(10,13,34,.55)';ctx.lineWidth=2.2;ctx.setLineDash([7,11]);ctx.lineDashOffset=-(V.oT*40);const a=Math.atan2(tip[1]-O[1],tip[0]-O[0]);
       ctx.beginPath();ctx.moveTo(...O);ctx.lineTo(tip[0]-Math.cos(a)*16,tip[1]-Math.sin(a)*16);ctx.stroke();ctx.restore()}
@@ -1011,8 +1012,8 @@ function vecStop(k){if(V.phase!=='roll'||V.fixed[k])return;if(k===1&&!V.fixed[0]
   V.phase='anim';V.tT=0;setGo('날아가는 중','',true);hud(`이어서 <span class="b">${term(V.cur[1],VB,true)}</span>만큼 날아가요`)}
 function vecStep(dt){
   if(V.phase==='done')V.oT=(V.oT||0)+dt;
-  if(V.phase==='roll'){if(V.fixed[0])V.sT+=dt;V.tick+=dt;if(V.tick>.08){V.tick=0;for(let k=0;k<2;k++)if(!V.fixed[k]){const R=k?V.tR:V.sR;V.cur[k]=R[0]+Math.floor(rand()*(R[1]-R[0]+1))}chips()}}
-  else if(V.phase==='anim'){V.sT+=dt;V.tT+=dt*(reduce?4:1);if(V.tT>=1.0){V.phase='done';V.oT=0;const [s,t]=V.cur;V.win=V.pts.find(p=>p.s===s&&p.t===t);
+  if(V.phase==='roll'){if(V.fixed[0])V.sT+=dt;V.tick+=dt;if(V.tick>.06){V.tick=0;const cs=vecCands();for(let k=0;k<2;k++)if(!V.fixed[k]){const vals=[...new Set(cs.map(p=>[p.s,p.t][k]))];let v=V.cur[k];if(vals.length>1)while(v===V.cur[k])v=vals[Math.floor(rand()*vals.length)];else v=vals[0];V.cur[k]=v}chips()}}
+  else if(V.phase==='anim'){V.sT+=dt;V.tT+=dt*(reduce?4:1);if(V.tT>=0.45){V.phase='done';V.oT=0;const [s,t]=V.cur;V.win=V.pts.find(p=>p.s===s&&p.t===t);
     const xy=vxy(s,t);hud(`<span class="k">${esc(nm(students[V.win.i]))}</span> 당첨!`);lock(false);
     result(V.win.i,'벡터 화살',`OP = ${combo(s,t)}`,[`<span><b>${VOP} = ${comboH(s,t)}</b></span>`,`<span>${VA} = (2, 1), ${VB} = (−1, 2)</span>`,`<span>${VOP} = (${fmt(xy[0])}, ${fmt(xy[1])}) · |${VOP}| = ${Math.hypot(...xy).toFixed(2)}</span>`])}}
 }
@@ -1077,7 +1078,7 @@ function drawSh(){
   ctx.strokeStyle='rgba(56,225,255,.13)';ctx.lineWidth=1;for(let i=-G;i<=G;i+=1.1){path3([[i,-G,0],[i,G,0]]);ctx.stroke();path3([[-G,i,0],[G,i,0]]);ctx.stroke()}
   const ax=(e,l)=>{path3([[0,0,0],e]);ctx.strokeStyle='rgba(238,241,255,.5)';ctx.lineWidth=1.4;ctx.stroke();const b=P(e);ctx.fillStyle='rgba(238,241,255,.8)';ctx.font='italic 600 15px Georgia,serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(l,b.x,b.y-10)};
   ax([G+.8,0,0],'x');ax([0,G+.8,0],'y');ax([0,0,8.2],'z');
-  const pr=prism(S.pose),fp=footprint(S.pose).map(pl=>pl.map(q=>[q[0],q[1],0])),lit=S.phase==='lit'||S.phase==='done',beam=lit?ss(clamp(S.t/0.5,0,1)):0;
+  const pr=prism(S.pose),fp=footprint(S.pose).map(pl=>pl.map(q=>[q[0],q[1],0])),lit=S.phase==='lit'||S.phase==='done',beam=lit?ss(clamp(S.t/0.15,0,1)):0;
   // the orthogonal projection of the whole solid on the xy-plane, with vertical light lines from the solid's outline down to it
   const fillFoot=st=>{ctx.beginPath();for(const pl of fp)pl.forEach((p,i)=>{const q=P(p);if(q)i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y)});ctx.closePath();ctx.fillStyle=st;ctx.fill('nonzero')};
   // outline of the union only (no inner seams): stroke every piece on a scratch canvas, then cut the filled union out of it
@@ -1162,7 +1163,7 @@ function shStep(dt){
   shTally();
   S.clock+=dt;S.ft=(S.ft||0)+dt*(S.phase==='fly'?4.6:S.phase==='idle'?.6:0);if(!drag&&S.phase!=='fly'&&S.phase!=='land')S.yaw+=dt*.08;
   if(S.phase==='idle'||S.phase==='fly')S.pose=flyPose(S.ft);
-  else if(S.phase==='land'){S.t+=dt;const u=ss(clamp(S.t/0.09,0,1)),f=S.from,t=S.to;S.pose={c:[lerp(f.c[0],t.c[0],u),lerp(f.c[1],t.c[1],u)],yaw:lerp(f.yaw,t.yaw,u),tilt:lerp(f.tilt,t.tilt,u)};
+  else if(S.phase==='land'){S.t+=dt;const u=ss(clamp(S.t/0.04,0,1)),f=S.from,t=S.to;S.pose={c:[lerp(f.c[0],t.c[0],u),lerp(f.c[1],t.c[1],u)],yaw:lerp(f.yaw,t.yaw,u),tilt:lerp(f.tilt,t.tilt,u)};
     if(u>=1){S.phase='lit';S.t=0;const fp=footprint(S.pose);S.sel=S.pts.filter(q=>S.pool.has(q.i)&&inFoot([q.p[0],q.p[1]],fp)).map(q=>q.i)}}
   else if(S.phase==='lit'){S.t+=dt;if(S.t>1.2)shRoundEnd()}
 }
@@ -1368,7 +1369,9 @@ function setMode(m){
   view={yaw:-0.55,pitch:m==='sphere'?0.35:0.38,zoom:1};$('#zoom').hidden=m==='marble'||m==='pool'||m==='vec'||m==='sh';$('#snd').hidden=m!=='pool';stage.classList.toggle('scrollable',m==='pool');if(m==='pool'){pl.phase='idle';pl.s=0;pl.ev=[]}resetChips();renderRule();save();
 }
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{if(!busy)setMode(t.dataset.mode)}));
-$('#go').addEventListener('click',toggle);
+let pressGo=false;
+$('#go').addEventListener('pointerdown',e=>{if(e.button!==0||$('#go').disabled)return;pressGo=true;setTimeout(()=>pressGo=false,700);toggle()});
+$('#go').addEventListener('click',()=>{if(pressGo){pressGo=false;return}toggle()});
 $('#shuffle').addEventListener('click',shuffle);
 document.addEventListener('keydown',e=>{
   if(e.code!=='Space'||e.repeat)return;const tg=e.target.tagName;
@@ -1396,7 +1399,7 @@ $('#clear').addEventListener('click',()=>{if(busy)return;state.history=[];render
 $('#rank').addEventListener('change',e=>{state.rank=e.target.value;save();renderRace()});
 const zoomBy=f=>{view.zoom=clamp(view.zoom*f,.5,3.2)};
 ['cx','cy','cz'].forEach((id,k)=>$('#'+id).addEventListener('click',()=>stopAxis(k)));
-$('#cs').addEventListener('click',()=>NG.vecStop(0));$('#ct').addEventListener('click',()=>NG.vecStop(1));
+[['#cs',0],['#ct',1]].forEach(([id,k])=>{let pr=false;$(id).addEventListener('pointerdown',e=>{if(e.button!==0||$(id).disabled)return;pr=true;setTimeout(()=>pr=false,700);NG.vecStop(k)});$(id).addEventListener('click',()=>{if(pr){pr=false;return}NG.vecStop(k)})});
 document.querySelectorAll('.shape').forEach(b=>b.addEventListener('click',()=>NG.pickShape(b)));
 $('#snd').addEventListener('click',()=>{soundOn=!soundOn;$('#snd').textContent=soundOn?'소리 켜짐':'소리 꺼짐';if(soundOn){audio();knock('wall',.6)}});
 $('#zin').addEventListener('click',()=>zoomBy(1.2));
