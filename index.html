@@ -173,6 +173,10 @@ details summary{cursor:pointer;font-size:14px;font-weight:500}
 /* where the browser has no element full screen (iPhone, some in-app browsers) the stage simply fills the window */
 .stage.pseudo-fs{position:fixed;inset:0;z-index:1000;height:100vh!important;height:100dvh!important;border-radius:0;margin:0}
 .stage.pseudo-fs .fs-go{display:block}
+/* tablets draw the clock and battery over the top of a full-screen page: keep the buttons one line lower */
+.stage:fullscreen #fs{top:calc(40px + env(safe-area-inset-top,0px))} .stage:fullscreen .snd,.stage:fullscreen .zoom{top:calc(88px + env(safe-area-inset-top,0px))} .stage:fullscreen .hud{top:calc(40px + env(safe-area-inset-top,0px))} .stage:fullscreen .hint{top:calc(42px + env(safe-area-inset-top,0px))}
+.stage:-webkit-full-screen #fs{top:calc(40px + env(safe-area-inset-top,0px))} .stage:-webkit-full-screen .snd,.stage:-webkit-full-screen .zoom{top:calc(88px + env(safe-area-inset-top,0px))} .stage:-webkit-full-screen .hud{top:calc(40px + env(safe-area-inset-top,0px))} .stage:-webkit-full-screen .hint{top:calc(42px + env(safe-area-inset-top,0px))}
+.stage.pseudo-fs #fs{top:calc(40px + env(safe-area-inset-top,0px))} .stage.pseudo-fs .snd,.stage.pseudo-fs .zoom{top:calc(88px + env(safe-area-inset-top,0px))} .stage.pseudo-fs .hud{top:calc(40px + env(safe-area-inset-top,0px))} .stage.pseudo-fs .hint{top:calc(42px + env(safe-area-inset-top,0px))}
 /* a bigger, easier full-screen button that always sits on top */
 .fs#fs{z-index:8;font-size:14px;padding:9px 14px;min-height:40px;touch-action:manipulation}
 /* new games: 꼬꼬무 벡터 · 그림자 피하기 */
