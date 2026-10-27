@@ -88,8 +88,8 @@ canvas:active{cursor:grabbing}
 .chip.rolling em{visibility:visible}
 .chip.rolling:hover{background:color-mix(in srgb,var(--mark) 14%,var(--panel-2))}
 .chip:disabled{opacity:1}
-.snd{top:48px}
-.zoom{position:absolute;right:12px;top:48px;display:flex;flex-direction:column;gap:5px;align-items:flex-end}
+.snd{top:60px}
+.zoom{position:absolute;right:12px;top:60px;display:flex;flex-direction:column;gap:5px;align-items:flex-end}
 .zoom button{font:700 18px var(--body);width:38px;height:36px;color:var(--ink);background:rgba(25,32,72,.85);border:1px solid var(--line);border-radius:9px;cursor:pointer}
 .zoom button:hover{border-color:var(--accent)}
 .zoom .zr{font:600 12px var(--body);width:auto;height:auto;padding:6px 10px;color:var(--muted)}
@@ -164,8 +164,16 @@ details summary{cursor:pointer;font-size:14px;font-weight:500}
 .site-foot{margin-top:8px;padding-top:16px;border-top:1px solid var(--line);text-align:center;font-size:13px;color:var(--muted);letter-spacing:.02em}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 :fullscreen .stage, .stage:fullscreen{height:100vh;border-radius:0}
+/* in full screen the controls below the stage are out of view, so the big button is repeated inside the stage */
+.fs-go{display:none;position:absolute;right:max(20px,env(safe-area-inset-right,0px));bottom:max(22px,env(safe-area-inset-bottom,0px));z-index:7;font-size:30px;padding:16px 40px}
+.stage:fullscreen .fs-go{display:block} .stage:-webkit-full-screen .fs-go{display:block}
+/* where the browser has no element full screen (iPhone, some in-app browsers) the stage simply fills the window */
+.stage.pseudo-fs{position:fixed;inset:0;z-index:1000;height:100vh!important;height:100dvh!important;border-radius:0;margin:0}
+.stage.pseudo-fs .fs-go{display:block}
+/* a bigger, easier full-screen button that always sits on top */
+.fs#fs{z-index:8;font-size:14px;padding:9px 14px;min-height:40px;touch-action:manipulation}
 /* new games: 꼬꼬무 벡터 · 그림자 피하기 */
-.hud{position:absolute;left:14px;top:12px;font:700 13px var(--mono);color:var(--ink);background:rgba(10,13,34,.75);border:1px solid var(--line);border-radius:10px;padding:6px 10px;pointer-events:none;max-width:calc(100% - 130px)}
+.hud{position:absolute;left:14px;top:12px;font:700 13px var(--mono);color:var(--ink);background:rgba(10,13,34,.75);border:1px solid var(--line);border-radius:10px;padding:6px 10px;pointer-events:none;max-width:calc(100% - 175px)}
 .hud .k{color:var(--mark)} .hud .a{color:var(--pink)} .hud .b{color:var(--accent)}
 .chip.sa{border-top:3px solid var(--pink)} .chip.tb{border-top:3px solid var(--accent)}
 .chip.wait{border-color:var(--line);box-shadow:none;cursor:not-allowed} .chip.wait em{visibility:hidden} .chip.wait strong{color:var(--muted)}
@@ -233,6 +241,7 @@ button{touch-action:manipulation}
         <div class="hint" id="hint">드래그하면 공간을 돌려 볼 수 있어요</div>
         <div class="hud" id="hud" hidden></div>
         <button class="fs" id="fs" type="button">전체 화면</button>
+        <button class="go fs-go" id="fs-go" type="button" aria-label="시작 (전체 화면)">시작</button>
         <button class="fs snd" id="snd" type="button" hidden>소리 켜짐</button>
         <div class="zoom" id="zoom">
           <button type="button" id="zin" aria-label="확대">＋</button>
@@ -350,7 +359,7 @@ button{touch-action:manipulation}
       </div>
     </aside>
   </main>
-  <footer class="site-foot">v1.3 · 2026.10.22 · © 2026 <a class="foot-link" href="https://www.instagram.com/chantteacher_math/" target="_blank" rel="noopener" title="찬T 인스타그램 @chantteacher_math">찬T</a> · 링크 공유 OK · 무단 복제·재배포 금지</footer>
+  <footer class="site-foot">v1.4 · 2026.10.27 · © 2026 <a class="foot-link" href="https://www.instagram.com/chantteacher_math/" target="_blank" rel="noopener" title="찬T 인스타그램 @chantteacher_math">찬T</a> · 링크 공유 OK · 무단 복제·재배포 금지</footer>
 </div>
 
 <script>
@@ -1437,7 +1446,7 @@ function nearest(){const p=picked(),A=front();let best=-1,bz=-1e9;
   sphere.forEach(q=>{if(state.exclude&&p.has(students[q.st].n))return;const w=mul(Q,q.s),z=w[0]*A[0]+w[1]*A[1]+w[2]*A[2];if(z>bz){bz=z;best=q.st}});return best}
 
 function setBusy(v){busy=v;['#cls','#cls-new','#cls-edit','#cls-del'].forEach(q=>$(q).disabled=v);if(v)closeClsPanels();document.querySelectorAll('.tab').forEach(t=>t.disabled=v);$('#apply').disabled=v;$('#shuffle').disabled=v;$('#rank').disabled=v;$('#clear').disabled=v}
-function setGo(label,cls,disabled){const g=$('#go');g.textContent=label;g.classList.toggle('stop',cls==='stop');g.disabled=!!disabled}
+function setGo(label,cls,disabled){for(const g of [$('#go'),$('#fs-go')]){if(!g)continue;g.textContent=label;g.classList.toggle('stop',cls==='stop');g.disabled=!!disabled}}
 
 function renderRank(){
   const sel=$('#rank'),n=eligibleIdx().length;let v=String(state.rank||'1');
@@ -1561,7 +1570,7 @@ function shuffle(){
 function setMode(m){
   state.mode=m;$('#result').hidden=true;winner=-1;cur=-1;stamp=null;
   document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.mode===m));
-  const ng=m==='vec'||m==='sh'||m==='wheel';$('#vchips').hidden=m!=='vec';$('#shapes').hidden=m!=='sh';$('#wro').hidden=m!=='wheel';{const rs=$('#result');if(m==='wheel'){if(rs.parentNode===stage)stage.after(rs);rs.classList.add('below')}else{if(rs.parentNode!==stage)stage.appendChild(rs);rs.classList.remove('below')}}$('#hud').hidden=!ng;$('#hint').hidden=ng;if(m==='wheel')WH.enter();else if(ng)NG.enter(m);
+  const ng=m==='vec'||m==='sh'||m==='wheel';$('#vchips').hidden=m!=='vec';$('#shapes').hidden=m!=='sh';$('#wro').hidden=m!=='wheel';{const rs=$('#result');if(m==='wheel'&&!isFs()){if(rs.parentNode===stage)stage.after(rs);rs.classList.add('below')}else{if(rs.parentNode!==stage)stage.appendChild(rs);rs.classList.remove('below')}}$('#hud').hidden=!ng;$('#hint').hidden=ng;if(m==='wheel')WH.enter();else if(ng)NG.enter(m);
   $('#chips').hidden=m!=='dice';$('#map-card').hidden=m!=='dice';$('#rankbox').hidden=m!=='marble';$('#race-card').hidden=m!=='marble';
   $('#hint').textContent=m==='pool'?'':m==='marble'?'드래그하면 위아래로 볼 수 있어요':m==='sphere'?'드래그: 구 돌리기 · ＋/－ 또는 Ctrl+휠: 확대·축소':'드래그: 회전 · ＋/－ 또는 Ctrl+휠: 확대·축소';
   if(m==='marble'){renderRank();lineup()}
@@ -1572,6 +1581,9 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{if(
 let pressGo=false;
 $('#go').addEventListener('pointerdown',e=>{if(e.button!==0||$('#go').disabled)return;pressGo=true;setTimeout(()=>pressGo=false,700);toggle()});
 $('#go').addEventListener('click',()=>{if(pressGo){pressGo=false;return}toggle()});
+let pressFs=false;
+$('#fs-go').addEventListener('pointerdown',e=>{if(e.button!==0||$('#fs-go').disabled)return;e.stopPropagation();pressFs=true;setTimeout(()=>pressFs=false,700);toggle()});
+$('#fs-go').addEventListener('click',e=>{e.stopPropagation();if(pressFs){pressFs=false;return}toggle()});
 $('#shuffle').addEventListener('click',shuffle);
 document.addEventListener('keydown',e=>{
   if(e.code!=='Space'||e.repeat)return;const tg=e.target.tagName;
@@ -1607,7 +1619,24 @@ $('#zout').addEventListener('click',()=>zoomBy(1/1.2));
 $('#zreset').addEventListener('click',()=>{view.yaw=-0.55;view.pitch=state.mode==='sphere'?0.35:0.38;view.zoom=1;if(state.mode==='sphere'&&!busy&&!stamp)Q=[1,0,0,0,1,0,0,0,1]});
 // a plain wheel scrolls the page; Ctrl + wheel (and trackpad pinch) zooms the 3D view
 cv.addEventListener('wheel',e=>{if(!e.ctrlKey||state.mode==='pool'||state.mode==='marble'||state.mode==='vec'||state.mode==='sh'||state.mode==='wheel')return;e.preventDefault();zoomBy(Math.exp(-e.deltaY*.004))},{passive:false});
-$('#fs').addEventListener('click',()=>{try{const p=document.fullscreenElement?document.exitFullscreen():stage.requestFullscreen();p&&p.catch&&p.catch(()=>{})}catch(e){}});
+const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
+const isFs=()=>fsEl()===stage||stage.classList.contains('pseudo-fs');
+function pseudo(on){stage.classList.toggle('pseudo-fs',on);document.documentElement.style.overflow=on?'hidden':'';onFs()}
+function toggleFs(){
+  if(stage.classList.contains('pseudo-fs'))return pseudo(false);
+  if(fsEl()){try{const p=document.exitFullscreen?document.exitFullscreen():document.webkitExitFullscreen();p&&p.catch&&p.catch(()=>{})}catch(e){}return}
+  const req=stage.requestFullscreen||stage.webkitRequestFullscreen;
+  if(!req)return pseudo(true);
+  try{const p=req.call(stage);if(p&&p.catch)p.catch(()=>pseudo(true))}catch(e){pseudo(true)}}
+// react on press, so a tap that moves a little still counts
+let pressFsBtn=false;
+$('#fs').addEventListener('pointerdown',e=>{if(e.button!==0)return;e.stopPropagation();pressFsBtn=true;setTimeout(()=>pressFsBtn=false,700);toggleFs()});
+$('#fs').addEventListener('click',e=>{e.stopPropagation();if(pressFsBtn){pressFsBtn=false;return}toggleFs()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&stage.classList.contains('pseudo-fs'))pseudo(false)});
+function onFs(){const on=isFs(),rs=$('#result');$('#fs').textContent=on?'화면 줄이기':'전체 화면';
+  if(on){if(rs.parentNode!==stage)stage.appendChild(rs);rs.classList.remove('below')}
+  else if(state.mode==='wheel'){if(rs.parentNode===stage)stage.after(rs);rs.classList.add('below')}}
+document.addEventListener('fullscreenchange',onFs);document.addEventListener('webkitfullscreenchange',onFs);
 
 const pdist=()=>{const [a,b]=[...pointers.values()];return Math.hypot(a.x-b.x,a.y-b.y)};
 cv.addEventListener('pointerdown',e=>{if(state.mode==='pool'||state.mode==='vec'||state.mode==='wheel'||(busy&&state.mode!=='dice'&&state.mode!=='sh'&&!(state.mode==='marble'&&mb.paused)))return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
