@@ -150,9 +150,12 @@ ol.race{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;ga
 .check{display:flex;gap:8px;align-items:center;font-size:14px}
 .check input{width:18px;height:18px;accent-color:var(--accent)}
 ol.hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto}
-ol.hist li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;font-size:14px;padding-bottom:6px;border-bottom:1px dashed var(--line)}
+ol.hist li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:2px 10px;font-size:14px;padding-bottom:6px;border-bottom:1px dashed var(--line)}
 ol.hist .num{font-family:'BHS Button',var(--display);font-size:22px;line-height:1.2;grid-row:span 2;min-width:44px;color:var(--mark)}
-ol.hist .meta{font-family:var(--mono);font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+ol.hist .del{grid-column:3;grid-row:1 / span 2;align-self:center;width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:var(--panel-2);color:var(--muted);font:700 16px var(--body);line-height:1;cursor:pointer;touch-action:manipulation}
+ol.hist .del:hover{color:#fff;border-color:var(--red);background:rgba(255,77,109,.18)}
+ol.hist .del:disabled{opacity:.35;cursor:not-allowed}
+ol.hist .meta{grid-column:2;font-family:var(--mono);font-size:12px;color:var(--muted);overflow-wrap:anywhere}
 .empty{font-size:13px;color:var(--muted)}
 details summary{cursor:pointer;font-size:14px;font-weight:500}
 .map{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:4px 10px;margin-top:8px;font-family:var(--mono);font-size:12px;max-height:240px;overflow:auto}
@@ -457,7 +460,7 @@ function renderRule(){
 }
 function renderHist(){
   const h=state.history;
-  $('#hist').innerHTML=h.length?h.slice().reverse().map(e=>`<li><span class="num">${e.n}</span><span>${e.name?esc(e.name):e.n+'번'}</span><span class="meta">${e.mode} · ${e.mode==='꼬꼬무 벡터'||e.mode==='벡터 화살'?esc(e.coord).replace(/(?<![A-Za-z])(OP|a|b)(?![A-Za-z])/g,'<span class="v">$1</span>'):esc(e.coord)}</span></li>`).join('')
+  $('#hist').innerHTML=h.length?h.map((e,i)=>({e,i})).reverse().map(({e,i})=>`<li><span class="num">${e.n}</span><span>${e.name?esc(e.name):e.n+'번'}</span><span class="meta">${e.mode} · ${e.mode==='꼬꼬무 벡터'||e.mode==='벡터 화살'?esc(e.coord).replace(/(?<![A-Za-z])(OP|a|b)(?![A-Za-z])/g,'<span class="v">$1</span>'):esc(e.coord)}</span><button class="del" type="button" data-i="${i}" aria-label="${e.name?esc(e.name):e.n+'번'} 기록 지우기" title="이 기록만 지우기"${busy?' disabled':''}>×</button></li>`).join('')
     :'<li class="empty" style="border:0">아직 발표한 학생이 없어요.</li>';
 }
 /* classes: each one keeps its own roster, history and seat shuffles on this device */
@@ -1445,7 +1448,7 @@ function frame(t){
 function nearest(){const p=picked(),A=front();let best=-1,bz=-1e9;
   sphere.forEach(q=>{if(state.exclude&&p.has(students[q.st].n))return;const w=mul(Q,q.s),z=w[0]*A[0]+w[1]*A[1]+w[2]*A[2];if(z>bz){bz=z;best=q.st}});return best}
 
-function setBusy(v){busy=v;['#cls','#cls-new','#cls-edit','#cls-del'].forEach(q=>$(q).disabled=v);if(v)closeClsPanels();document.querySelectorAll('.tab').forEach(t=>t.disabled=v);$('#apply').disabled=v;$('#shuffle').disabled=v;$('#rank').disabled=v;$('#clear').disabled=v}
+function setBusy(v){busy=v;document.querySelectorAll('#hist .del').forEach(b=>b.disabled=v);['#cls','#cls-new','#cls-edit','#cls-del'].forEach(q=>$(q).disabled=v);if(v)closeClsPanels();document.querySelectorAll('.tab').forEach(t=>t.disabled=v);$('#apply').disabled=v;$('#shuffle').disabled=v;$('#rank').disabled=v;$('#clear').disabled=v}
 function setGo(label,cls,disabled){for(const g of [$('#go'),$('#fs-go')]){if(!g)continue;g.textContent=label;g.classList.toggle('stop',cls==='stop');g.disabled=!!disabled}}
 
 function renderRank(){
@@ -1607,6 +1610,8 @@ $('#cls-del-ok').addEventListener('click',()=>{const name=curCls().name;state.cl
   closeClsPanels();loadClass(state.classes[0].id);say(`${name}을 삭제했어요.`)});
 const refreshMarble=()=>{renderRank();if(state.mode==='marble'&&!busy)lineup()};
 $('#exclude').addEventListener('change',e=>{state.exclude=e.target.checked;refreshMarble();save()});
+$('#hist').addEventListener('click',e=>{const b=e.target.closest('.del');if(!b||busy)return;const i=+b.dataset.i;if(!(i>=0&&i<state.history.length))return;
+  const r=state.history.splice(i,1)[0];renderHist();save();renderRank();if(typeof refreshMarble==='function')refreshMarble();if(typeof NG!=='undefined')NG.layout();say(`${r.name||r.n+'번'} 기록을 지웠어요. 다시 뽑힐 수 있어요.`)});
 $('#clear').addEventListener('click',()=>{if(busy)return;state.history=[];renderHist();save();$('#result').hidden=true;winner=-1;stamp=null;refreshMarble()});
 $('#rank').addEventListener('change',e=>{state.rank=e.target.value;save();renderRace()});
 const zoomBy=f=>{view.zoom=clamp(view.zoom*f,.5,3.2)};
@@ -1630,9 +1635,10 @@ function toggleFs(){
   try{const p=req.call(stage);if(p&&p.catch)p.catch(()=>pseudo(true))}catch(e){pseudo(true)}}
 // react on press, so a tap that moves a little still counts
 let pressFsBtn=false;
-$('#fs').addEventListener('pointerdown',e=>{if(e.button!==0)return;e.stopPropagation();pressFsBtn=true;setTimeout(()=>pressFsBtn=false,700);toggleFs()});
-$('#fs').addEventListener('click',e=>{e.stopPropagation();if(pressFsBtn){pressFsBtn=false;return}toggleFs()});
+$('#fs').addEventListener('click',e=>{e.stopPropagation();toggleFs()});
+$('#fs').addEventListener('pointerdown',e=>e.stopPropagation());
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&stage.classList.contains('pseudo-fs'))pseudo(false)});
+['click','touchend','keydown'].forEach(ev=>document.addEventListener(ev,()=>{try{const a=actx;if(a&&a.state==='suspended')a.resume().catch(()=>{})}catch(e){}},{passive:true}));
 function onFs(){const on=isFs(),rs=$('#result');$('#fs').textContent=on?'화면 줄이기':'전체 화면';
   if(on){if(rs.parentNode!==stage)stage.appendChild(rs);rs.classList.remove('below')}
   else if(state.mode==='wheel'){if(rs.parentNode===stage)stage.after(rs);rs.classList.add('below')}}
